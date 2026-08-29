@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Base Paper & Ink */
+  --paper: #FAF7F2;
+  --canvas-subtle: #F3EFE6;
+  --ink: #191817;
+  --ink-secondary: #5E5B56;
+  --ink-muted: #8E8A83;
+  --border-ink: #191817;
+  --border-subtle: #E8E2D6;
+
+  /* State & Accent Colors (Mapped per dashboard-editorial-adapter) */
+  --accent-coral: #F47B56;
+  --accent-coral-hover: #E46843;
+  --pastel-mint: #7DD6AC;
+  --pastel-lilac: #D9B8F4;
+  --pastel-yellow: #FED766;
+  --pastel-sky: #9AE4FF;
+
+  /* Card Surfaces & Shadows */
+  --card-white: #FFFFFF;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Tactile Card Style */
+.tactile-card {
+  background-color: #FFFFFF;
+  border: 1px solid var(--border-ink);
+  border-radius: 10px;
+  box-shadow: 2px 3px 0px var(--ink);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.tactile-card-interactive:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 4px 0px var(--ink);
+}
+
+.tactile-card-interactive:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 2px 0px var(--ink);
+}
+
+/* Tactile Pill Button */
+.tactile-pill {
+  border: 1px solid var(--border-ink);
+  border-radius: 9999px;
+  box-shadow: 1px 2px 0px var(--ink);
+  transition: all 120ms ease;
+}
+
+.tactile-pill:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 3px 0px var(--ink);
+}
+
+.tactile-pill:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0px 1px 0px var(--ink);
+}
+
+/* Smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--paper);
+}
+::-webkit-scrollbar-thumb {
+  background: #D5CFC4;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

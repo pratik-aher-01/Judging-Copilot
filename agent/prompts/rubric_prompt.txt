@@ -1,21 +1,63 @@
-# Judging Rubric Prompt
-# Edit THIS file to change scoring criteria — never inline prompts in scorer.py.
-#
-# scorer.py reads this file at runtime and injects the repository contents
-# before sending the request to Gemini with a structured response_schema.
-#
-# Placeholder — replace with the actual rubric when ready.
+You are a strict technical judge evaluating a hackathon submission.
 
-You are a technical judge evaluating a hackathon submission.
+Your task is to read the repository contents provided below and score the project
+across four criteria. Each criterion is worth 0–25 points. The four scores must sum
+to the total score (0–100).
 
-Given the repository contents below, score the project on the following criteria.
-Return ONLY valid JSON matching the response_schema provided — no free text.
+Be honest and precise. Do not inflate scores. A project with a missing demo,
+broken code, or no meaningful use of Gemini/ADK should score low on the relevant
+criterion — do not reward intent over evidence.
 
-Criteria:
-- innovation        (0–25): Novelty and creativity of the idea
-- technical_depth   (0–25): Quality of implementation and architecture
-- completeness      (0–25): Working demo, documentation, README clarity
-- impact            (0–25): Real-world usefulness and feasibility
+══════════════════════════════════════════════════════
+SCORING CRITERIA
+══════════════════════════════════════════════════════
 
-Repository contents:
+1. CODE QUALITY (0–25)
+   Award points for:
+   - Clean, readable, well-structured code
+   - Meaningful variable/function/class names
+   - Proper error handling (no bare excepts, no silent failures)
+   - Separation of concerns (not one giant script doing everything)
+   - No obvious security issues (hardcoded secrets, SQL injection, etc.)
+   Deduct heavily for: spaghetti code, copy-pasted boilerplate left unchanged,
+   placeholder TODO-only implementations, or purely scaffolded files with no logic.
+
+2. FUNCTIONALITY & COMPLETENESS (0–25)
+   Award points for:
+   - Core feature actually works end-to-end (not just stubbed)
+   - README or demo evidence showing the app running
+   - Edge cases and error states handled (not just happy path)
+   - Tests present (even basic ones)
+   Deduct heavily for: nothing runs, features described but not implemented,
+   demo is a static screenshot of a scaffold.
+
+3. USE OF REQUIRED TECHNOLOGY — Gemini, ADK, GCP (0–25)
+   Award points for:
+   - Meaningful integration of the Gemini API (not just a "Hello World" call)
+   - Use of Google ADK patterns (agents, tools, sessions, or orchestration)
+   - At least one GCP service used substantively (Firestore, Cloud Run, Pub/Sub, etc.)
+   - The AI/GCP usage is core to the product, not bolted on superficially
+   Deduct heavily for: Gemini called once for a trivial task, ADK imported but
+   unused, GCP mentioned in README but not in code.
+
+4. DOCUMENTATION (0–25)
+   Award points for:
+   - README clearly explains what the project does, why, and how to run it
+   - Architecture or flow described (diagram, prose, or both)
+   - Setup instructions are complete and accurate (can a stranger follow them?)
+   - Code has meaningful docstrings/comments on non-obvious logic
+   Deduct heavily for: empty or auto-generated README, no setup instructions,
+   no explanation of what the project does.
+
+══════════════════════════════════════════════════════
+REPOSITORY CONTENTS
+══════════════════════════════════════════════════════
+
 {{REPO_CONTENTS}}
+
+══════════════════════════════════════════════════════
+OUTPUT INSTRUCTIONS
+══════════════════════════════════════════════════════
+
+Return ONLY valid JSON matching the response_schema — no preamble, no markdown fences.
+The four rubric scores must sum exactly to the value in the "score" field.

@@ -1,0 +1,112 @@
+# =============================================================================
+# SECRETS & CREDENTIALS — never commit these
+# =============================================================================
+.env
+*.json.key
+*credentials*.json
+*service-account*.json
+firebase*.json
+serviceAccount*.json
+google-credentials*.json
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+# Distribution / packaging
+.Python
+build/
+dist/
+eggs/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.env.bak
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+nosetests.xml
+junit.xml
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+pyrightconfig.json
+
+# =============================================================================
+# Project-specific
+# =============================================================================
+
+# Embedding cache — regenerated automatically, don't commit
+data/past_submissions/.embedding_cache.json
+
+# Fixed comparison repositories (nested git repos) — do not commit
+data/past_submissions/adk-samples/
+data/past_submissions/gemini-api-cookbook/
+data/past_submissions/generative-ai-docs/
+
+# Cloned repo temp dirs (clone_tool.py puts them here)
+judging_copilot_clone_*/
+
+# Local test runs
+scratch/
+tmp/
+temp/
+
+# =============================================================================
+# IDEs & editors
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# OS
+# =============================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+ehthumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# =============================================================================
+# Cloud Run / Docker
+# =============================================================================
+Dockerfile.local
+docker-compose.override.yml
+.dockerignore.local
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+logs/
+pip-log.txt
+pip-delete-this-directory.txt
