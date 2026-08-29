@@ -1,0 +1,21 @@
+# Judging Rubric Prompt
+# Edit THIS file to change scoring criteria — never inline prompts in scorer.py.
+#
+# scorer.py reads this file at runtime and injects the repository contents
+# before sending the request to Gemini with a structured response_schema.
+#
+# Placeholder — replace with the actual rubric when ready.
+
+You are a technical judge evaluating a hackathon submission.
+
+Given the repository contents below, score the project on the following criteria.
+Return ONLY valid JSON matching the response_schema provided — no free text.
+
+Criteria:
+- innovation        (0–25): Novelty and creativity of the idea
+- technical_depth   (0–25): Quality of implementation and architecture
+- completeness      (0–25): Working demo, documentation, README clarity
+- impact            (0–25): Real-world usefulness and feasibility
+
+Repository contents:
+{{REPO_CONTENTS}}

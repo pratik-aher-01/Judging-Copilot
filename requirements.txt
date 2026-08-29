@@ -1,0 +1,7 @@
+google-adk
+google-genai
+gitpython
+firebase-admin
+fastapi
+uvicorn
+python-dotenv
