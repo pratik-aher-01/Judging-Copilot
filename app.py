@@ -17,13 +17,14 @@ from dotenv import load_dotenv
 
 load_dotenv()  # must happen before any module that reads env vars is imported
 
+from typing import Union
 import asyncio
 import dataclasses
 import json
 import logging
 import traceback
 
-from fastapi import FastAPI, HTTPException, Path, Query
+from fastapi import FastAPI, HTTPException, Path, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, HttpUrl, field_validator
@@ -94,9 +95,87 @@ class VerdictResponse(BaseModel):
     doc_id: str | None = None  # Firestore document ID, if write succeeded
 
 
+class JobStatusResponse(BaseModel):
+    """Schema for background judging job status and details."""
+    job_id: str
+    repo_url: str
+    status: str
+    stage: str
+    created_at: str
+    updated_at: str
+    pipeline_started_at: str | None = None
+    pipeline_completed_at: str | None = None
+    verdict_doc_id: str | None = None
+    error: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+def _normalize_url(url: str) -> str:
+    """Normalize GitHub URL by stripping whitespace, trailing slashes, and .git suffix."""
+    url = url.strip()
+    if url.endswith(".git"):
+        url = url[:-4]
+    url = url.rstrip("/")
+    return url
+
+
+def execute_background_judging(job_id: str, repo_url: str) -> None:
+    """Background worker task executing the ADK judging pipeline."""
+    from storage.firestore_client import update_job
+    from agent.orchestrator import run_pipeline
+    from datetime import datetime, timezone
+
+    logger.info("Background judging started for job_id=%s, repo=%s", job_id, repo_url)
+    
+    started_at = datetime.now(timezone.utc).isoformat()
+    update_job(
+        job_id=job_id,
+        status="RUNNING",
+        stage="RUNNING",
+        pipeline_started_at=started_at,
+    )
+
+    def on_step(step_name: str, status: str, detail: str | None) -> None:
+        stage_map = {
+            "clone": "INSPECTING",
+            "inspect": "INSPECTING",
+            "score": "EVALUATING",
+            "duplicate_check": "VERIFYING",
+            "firestore_write": "VERIFYING",
+            "alert": "VERIFYING",
+        }
+        stage = stage_map.get(step_name, "RUNNING")
+        try:
+            update_job(job_id=job_id, status="RUNNING", stage=stage)
+        except Exception as exc:
+            logger.warning("Failed to update job stage for job_id=%s: %s", job_id, exc)
+
+    try:
+        verdict = run_pipeline(repo_url=repo_url, on_step=on_step)
+        verdict_doc_id = verdict.doc_id
+        completed_at = datetime.now(timezone.utc).isoformat()
+        update_job(
+            job_id=job_id,
+            status="COMPLETED",
+            stage="COMPLETED",
+            verdict_doc_id=verdict_doc_id,
+            pipeline_completed_at=completed_at,
+        )
+        logger.info("Background judging completed for job_id=%s, verdict_doc_id=%s", job_id, verdict_doc_id)
+    except Exception as exc:
+        logger.error("Background judging failed for job_id=%s: %s", job_id, exc)
+        completed_at = datetime.now(timezone.utc).isoformat()
+        update_job(
+            job_id=job_id,
+            status="FAILED",
+            stage="FAILED",
+            error=str(exc),
+            pipeline_completed_at=completed_at,
+        )
+
 
 @app.post(
     "/judge",
@@ -109,11 +188,7 @@ class VerdictResponse(BaseModel):
 )
 async def judge(request: JudgeRequest) -> VerdictResponse:
     """
-    Run the full judging pipeline for a submitted repo URL.
-
-    - 400 if repo_url is missing or not a GitHub HTTPS URL
-    - 500 if the pipeline fails (clone or scoring error) — stack trace logged
-           server-side, clean message returned to client
+    Run the full judging pipeline for a submitted repo URL synchronously.
     """
     from agent.orchestrator import run_pipeline
 
@@ -122,32 +197,80 @@ async def judge(request: JudgeRequest) -> VerdictResponse:
     try:
         verdict = run_pipeline(request.repo_url)
     except RuntimeError as exc:
-        # Known pipeline error — log full trace server-side, return clean message
-        logger.error(
-            "Pipeline failed for %s:\n%s",
-            request.repo_url,
-            traceback.format_exc(),
-        )
-        raise HTTPException(
-            status_code=500,
-            detail=f"Pipeline error: {exc}",
-        ) from exc
+        logger.error("Pipeline failed for %s:\n%s", request.repo_url, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Pipeline error: {exc}") from exc
     except Exception as exc:
-        # Unexpected error — same treatment
-        logger.error(
-            "Unexpected error in pipeline for %s:\n%s",
-            request.repo_url,
-            traceback.format_exc(),
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="An unexpected server error occurred. Check server logs.",
-        ) from exc
+        logger.error("Unexpected error in pipeline for %s:\n%s", request.repo_url, traceback.format_exc())
+        raise HTTPException(status_code=500, detail="An unexpected server error occurred. Check server logs.") from exc
 
-    # verdict.doc_id is now populated by orchestrator.run_pipeline after the
-    # Firestore write — dataclasses.asdict captures it automatically.
     verdict_dict = dataclasses.asdict(verdict)
     return VerdictResponse(**verdict_dict)
+
+
+@app.post(
+    "/jobs",
+    response_model=JobStatusResponse,
+    status_code=202,
+    summary="Create background judging job",
+    description="Creates an asynchronous judging job for the given repo URL and returns immediately.",
+)
+async def create_judging_job(
+    request: JudgeRequest,
+    background_tasks: BackgroundTasks,
+) -> JobStatusResponse:
+    from storage.firestore_client import create_job, get_active_job_by_url
+    from datetime import datetime, timezone
+
+    normalized_url = _normalize_url(request.repo_url)
+    logger.info("POST /jobs received for: %s (normalized: %s)", request.repo_url, normalized_url)
+
+    try:
+        # Prevent duplicate execution
+        active_job = get_active_job_by_url(normalized_url)
+        if active_job:
+            logger.info("Active job already exists for %s: job_id=%s", normalized_url, active_job["job_id"])
+            return JobStatusResponse(**active_job)
+
+        # Create new job doc (using normalized URL)
+        job_id = create_job(normalized_url)
+        logger.info("Created new background job: %s", job_id)
+
+        # Schedule execution (non-blocking background execution with persistent Firestore job state)
+        background_tasks.add_task(execute_background_judging, job_id, normalized_url)
+        
+        # Return initial queued status
+        now = datetime.now(timezone.utc).isoformat()
+        return JobStatusResponse(
+            job_id=job_id,
+            repo_url=normalized_url,
+            status="QUEUED",
+            stage="QUEUED",
+            created_at=now,
+            updated_at=now,
+        )
+    except Exception as exc:
+        logger.error("Failed to enqueue background job for %s:\n%s", request.repo_url, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to enqueue job: {exc}") from exc
+
+
+@app.get(
+    "/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    summary="Get background job status",
+    description="Retrieve the current status, stage, and verdict document link of a background judging job.",
+)
+async def get_job_status(
+    job_id: str = Path(..., description="The background job document ID"),
+) -> JobStatusResponse:
+    from storage.firestore_client import get_job
+    try:
+        job_data = get_job(job_id)
+        return JobStatusResponse(**job_data)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.error("GET /jobs/%s failed:\n%s", job_id, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve job: {exc}") from exc
 
 
 @app.get(

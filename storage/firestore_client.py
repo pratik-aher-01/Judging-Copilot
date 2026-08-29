@@ -202,3 +202,112 @@ def get_verdict(doc_id: str) -> dict:
     data = doc.to_dict()
     data["_doc_id"] = doc.id
     return data
+
+
+# ---------------------------------------------------------------------------
+# Background Jobs Interface
+# ---------------------------------------------------------------------------
+
+from typing import Optional
+
+JOBS_COLLECTION = "jobs"
+
+def create_job(repo_url: str) -> str:
+    """
+    Create a new job document in Firestore with 'QUEUED' status.
+
+    Args:
+        repo_url: The repository URL to judge.
+
+    Returns:
+        job_id (str): The auto-generated Firestore document ID.
+    """
+    from datetime import datetime, timezone
+    try:
+        db = _get_db()
+        now = datetime.now(timezone.utc).isoformat()
+        job_dict = {
+            "repo_url": repo_url,
+            "status": "QUEUED",
+            "stage": "QUEUED",
+            "created_at": now,
+            "updated_at": now,
+            "pipeline_started_at": None,
+            "pipeline_completed_at": None,
+            "verdict_doc_id": None,
+            "error": None,
+        }
+        _time, doc_ref = db.collection(JOBS_COLLECTION).add(job_dict)
+        return doc_ref.id
+    except Exception as exc:
+        raise RuntimeError(f"Firestore create_job failed for {repo_url}: {exc}") from exc
+
+
+def update_job(
+    job_id: str,
+    status: str,
+    stage: Optional[str] = None,
+    error: Optional[str] = None,
+    verdict_doc_id: Optional[str] = None,
+    pipeline_started_at: Optional[str] = None,
+    pipeline_completed_at: Optional[str] = None,
+) -> None:
+    """
+    Update an existing job's status, stage, error, or verdict reference in Firestore.
+    """
+    from datetime import datetime, timezone
+    try:
+        db = _get_db()
+        now = datetime.now(timezone.utc).isoformat()
+        updates = {
+            "status": status,
+            "updated_at": now,
+        }
+        if stage is not None:
+            updates["stage"] = stage
+        if error is not None:
+            updates["error"] = error
+        if verdict_doc_id is not None:
+            updates["verdict_doc_id"] = verdict_doc_id
+        if pipeline_started_at is not None:
+            updates["pipeline_started_at"] = pipeline_started_at
+        if pipeline_completed_at is not None:
+            updates["pipeline_completed_at"] = pipeline_completed_at
+
+        db.collection(JOBS_COLLECTION).document(job_id).update(updates)
+    except Exception as exc:
+        raise RuntimeError(f"Firestore update_job failed for job_id={job_id}: {exc}") from exc
+
+
+def get_job(job_id: str) -> dict:
+    """
+    Retrieve a job document from Firestore by its document ID.
+    """
+    try:
+        db = _get_db()
+        doc = db.collection(JOBS_COLLECTION).document(job_id).get()
+    except Exception as exc:
+        raise RuntimeError(f"Firestore get_job failed for job_id={job_id}: {exc}") from exc
+
+    if not doc.exists:
+        raise KeyError(f"No job found with job_id={job_id}")
+    data = doc.to_dict()
+    data["job_id"] = doc.id
+    return data
+
+
+def get_active_job_by_url(repo_url: str) -> Optional[dict]:
+    """
+    Check if there is an active job ('QUEUED' or 'RUNNING') for the given repo_url.
+    """
+    try:
+        db = _get_db()
+        docs = db.collection(JOBS_COLLECTION).where("repo_url", "==", repo_url).stream()
+        for doc in docs:
+            data = doc.to_dict()
+            if data.get("status") in ("QUEUED", "RUNNING"):
+                data["job_id"] = doc.id
+                return data
+        return None
+    except Exception as exc:
+        raise RuntimeError(f"Firestore get_active_job_by_url failed for {repo_url}: {exc}") from exc
