@@ -54,10 +54,16 @@ def _initialize_firebase() -> None:
 
     creds_path = os.environ.get("FIREBASE_CREDENTIALS_PATH", "").strip()
     if not creds_path:
-        raise RuntimeError(
-            "FIREBASE_CREDENTIALS_PATH environment variable is not set. "
-            "Add it to your .env file (see .env.example)."
-        )
+        # Fallback to Application Default Credentials (ADC) on Google Cloud Run
+        try:
+            firebase_admin.initialize_app()
+            logger.info("Firebase Admin SDK initialized using Application Default Credentials (ADC).")
+            return
+        except Exception as exc:
+            raise RuntimeError(
+                f"FIREBASE_CREDENTIALS_PATH is unset and fallback to "
+                f"Application Default Credentials (ADC) failed: {exc}"
+            ) from exc
 
     if not os.path.isfile(creds_path):
         raise RuntimeError(
