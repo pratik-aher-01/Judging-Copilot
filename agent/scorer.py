@@ -38,7 +38,7 @@ RUBRIC_PROMPT_PATH = Path(__file__).parent / "prompts" / "rubric_prompt.txt"
 GEMINI_MODEL = "gemini-3.5-flash"
 
 # Fallback model used when the primary is unavailable (503/429).
-GEMINI_FALLBACK_MODEL = "gemini-2.0-flash"
+GEMINI_FALLBACK_MODEL = "gemini-3.6-flash"
 
 # Retry settings for transient API errors (503 / 429 / ResourceExhausted)
 MAX_RETRIES = 3          # attempts per model before giving up / falling back
@@ -139,6 +139,14 @@ def collect_repo_contents(local_path: str) -> str:
     readme_files: list[Path] = []
 
     for path in root.rglob("*"):
+        # Reject symbolic links and paths traversing symlinked parent directories
+        if path.is_symlink():
+            logger.warning("Skipping symlink file: %s", path)
+            continue
+        if any(p.is_symlink() for p in path.parents if p != root):
+            logger.warning("Skipping file under symlinked parent directory: %s", path)
+            continue
+            
         if not path.is_file():
             continue
         # Skip any file inside a blacklisted directory
@@ -166,6 +174,9 @@ def collect_repo_contents(local_path: str) -> str:
 
         if not content.strip():
             continue  # skip empty files
+
+        # Sanitize content to prevent XML tag escaping/injection
+        content = content.replace("<", "&lt;").replace(">", "&gt;")
 
         # Truncate large individual files
         if len(content) > MAX_FILE_CHARS:
