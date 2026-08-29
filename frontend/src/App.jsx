@@ -6,8 +6,9 @@ import RubricDrawer from './components/RubricDrawer';
 import EmptyState from './components/EmptyState';
 import AgentActivityPanel from './components/AgentActivityPanel';
 import { AlertCircle, RefreshCw } from 'lucide-react';
+import { API_BASE_URL } from './config';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = API_BASE_URL;
 
 export default function App() {
   const [verdicts, setVerdicts] = useState([]);
@@ -43,7 +44,7 @@ export default function App() {
     } catch (err) {
       console.error('Error fetching verdicts:', err);
       setError(
-        'Backend unreachable at http://localhost:8000/verdicts. Ensure FastAPI server is running with `python app.py`.'
+        `Backend unreachable at ${API_BASE}/verdicts. Ensure FastAPI server is running with \`python app.py\`.`
       );
     } finally {
       setLoading(false);

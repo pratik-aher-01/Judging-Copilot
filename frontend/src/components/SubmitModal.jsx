@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, AlertCircle, Loader2, GitBranch } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 export default function SubmitModal({ isOpen, onClose, onSuccess }) {
   const [repoUrl, setRepoUrl] = useState('');
@@ -20,7 +21,7 @@ export default function SubmitModal({ isOpen, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/judge', {
+      const res = await fetch(`${API_BASE_URL}/judge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo_url: cleanUrl }),
@@ -35,7 +36,7 @@ export default function SubmitModal({ isOpen, onClose, onSuccess }) {
       onSuccess(data);
       onClose();
     } catch (err) {
-      setError(err.message || 'Failed to connect to backend server at http://localhost:8000');
+      setError(err.message || `Failed to connect to backend server at ${API_BASE_URL}`);
     } finally {
       setLoading(false);
     }

@@ -13,6 +13,7 @@ import {
   Copy,
   Cpu,
 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 const PIPELINE_STEPS = [
   {
@@ -93,7 +94,7 @@ export default function AgentActivityPanel({
       eventSourceRef.current.close();
     }
 
-    const streamUrl = `http://localhost:8000/judge/stream?repo_url=${encodeURIComponent(url)}`;
+    const streamUrl = `${API_BASE_URL}/judge/stream?repo_url=${encodeURIComponent(url)}`;
     const es = new EventSource(streamUrl);
     eventSourceRef.current = es;
 
