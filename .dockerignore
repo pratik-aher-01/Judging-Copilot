@@ -11,7 +11,6 @@ __pycache__/
 .pytest_cache/
 .agents/
 .gemini/
-data/past_submissions/
 node_modules/
 scratch/
 C:/Users/Lenovo/.gemini/antigravity-ide/brain/
@@ -20,4 +19,5 @@ C:/Users/Lenovo/.gemini/antigravity-ide/brain/
 !package.json
 !storage/*.json
 !alerts/*.json
+!data/past_submissions/embedding_cache.json
 !agent/prompts/*.txt

@@ -20,6 +20,7 @@ COPY app.py .
 COPY storage/ ./storage/
 COPY agent/ ./agent/
 COPY alerts/ ./alerts/
+COPY data/ ./data/
 
 # Expose default Cloud Run port
 EXPOSE 8080

@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 PAST_SUBMISSIONS_DIR = Path(__file__).parent.parent / "data" / "past_submissions"
-EMBEDDING_CACHE_PATH = PAST_SUBMISSIONS_DIR / ".embedding_cache.json"
+EMBEDDING_CACHE_PATH = PAST_SUBMISSIONS_DIR / "embedding_cache.json"
 
 # Verified stable embedding model name (google-genai SDK, Aug 2026).
 # gemini-embedding-001 supersedes the legacy text-embedding-004/005 models.
@@ -123,26 +123,15 @@ def _cosine_similarity(a: list[float], b: list[float]) -> float:
 def _list_past_submission_dirs() -> list[Path]:
     """
     Return a sorted list of subdirectory Paths inside PAST_SUBMISSIONS_DIR.
-
-    Each subdirectory is expected to be a cloned past submission repo.
-
-    Raises:
-        RuntimeError: If the directory doesn't exist or is empty.
+    Ensures directory exists.
     """
     if not PAST_SUBMISSIONS_DIR.is_dir():
-        raise RuntimeError(
-            f"past_submissions directory does not exist: {PAST_SUBMISSIONS_DIR}"
-        )
-    dirs = sorted(
+        PAST_SUBMISSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        return []
+    return sorted(
         p for p in PAST_SUBMISSIONS_DIR.iterdir()
         if p.is_dir()
     )
-    if not dirs:
-        raise RuntimeError(
-            f"data/past_submissions/ is empty — no reference repos to compare against. "
-            f"Add at least one past submission directory to {PAST_SUBMISSIONS_DIR}"
-        )
-    return dirs
 
 
 def _load_cache() -> dict:
@@ -168,33 +157,11 @@ def _save_cache(cache: dict) -> None:
 def _get_past_embeddings(client) -> dict[str, list[float]]:
     """
     Return a dict mapping past-submission dir name → embedding vector.
-
-    Strategy:
-      - Load cache from .embedding_cache.json
-      - Determine which dirs are new (not in cache) or missing from cache
-      - Embed only the new/missing ones; skip the rest (cache hit)
-      - Save updated cache before returning
-
-    Args:
-        client: google.genai.Client instance.
-
-    Returns:
-        Dict of {dir_name: embedding_vector} for all past submissions.
-
-    Raises:
-        RuntimeError: If past_submissions/ is empty.
     """
     from agent.scorer import collect_repo_contents
 
     past_dirs = _list_past_submission_dirs()
     cache = _load_cache()
-    current_dir_names = {d.name for d in past_dirs}
-
-    # Evict stale entries (dirs that no longer exist)
-    stale_keys = [k for k in cache if k not in current_dir_names]
-    for k in stale_keys:
-        logger.debug("Evicting stale cache entry: %s", k)
-        del cache[k]
 
     # Embed any dirs not yet in cache
     newly_embedded = 0
@@ -212,8 +179,6 @@ def _get_past_embeddings(client) -> dict[str, list[float]]:
             cache[past_dir.name] = embedding
             newly_embedded += 1
         except Exception as exc:
-            # A broken past submission shouldn't block the whole check —
-            # log and skip. It simply won't participate in comparison.
             logger.warning(
                 "Could not embed past submission %s (skipping): %s",
                 past_dir.name, exc,
@@ -233,26 +198,6 @@ def _get_past_embeddings(client) -> dict[str, list[float]]:
 def check_duplicate(repo_path: str) -> tuple[bool, float]:
     """
     Check whether a cloned submission is a duplicate of a known past submission.
-
-    Steps:
-      1. Collect repo contents via scorer.collect_repo_contents (shared logic)
-      2. Generate an embedding for the submission using gemini-embedding-001
-      3. Load/update the cached embeddings for all past submissions
-      4. Compute cosine similarity against each past submission embedding
-      5. Return (True, max_similarity) if any similarity >= SIMILARITY_THRESHOLD,
-         else (False, max_similarity)
-
-    Args:
-        repo_path: Absolute path to the cloned submission repository root.
-
-    Returns:
-        A tuple of:
-          - duplicate_flag (bool): True if max similarity >= SIMILARITY_THRESHOLD.
-          - similarity_score (float): Highest cosine similarity found (0.0–1.0).
-
-    Raises:
-        RuntimeError: If past_submissions/ is empty, GEMINI_API_KEY is missing,
-                      or the embedding API call fails.
     """
     from agent.scorer import collect_repo_contents
 
@@ -267,7 +212,6 @@ def check_duplicate(repo_path: str) -> tuple[bool, float]:
     past_embeddings = _get_past_embeddings(client)
 
     if not past_embeddings:
-        # All past submissions failed to embed — degrade gracefully
         logger.warning(
             "No valid past-submission embeddings available; "
             "duplicate check returning False with score 0.0"
@@ -289,6 +233,12 @@ def check_duplicate(repo_path: str) -> tuple[bool, float]:
 
     # Step 5 — threshold decision
     duplicate_flag = max_similarity >= SIMILARITY_THRESHOLD
+
+    # Cache current submission vector for subsequent comparison runs
+    repo_name = Path(repo_path).name
+    past_embeddings[repo_name] = submission_embedding
+    _save_cache(past_embeddings)
+
     if duplicate_flag:
         logger.warning(
             "DUPLICATE DETECTED: similarity=%.4f against '%s' (threshold=%.2f)",
