@@ -20,6 +20,7 @@ export default function TopNav({
     <header className="sticky top-0 z-30 border-b border-ink bg-paper/95 backdrop-blur px-6 py-3.5 flex items-center justify-between">
       {/* Brand & Subtitle */}
       <div className="flex items-center gap-3">
+        <img src="/favicon.svg" alt="Judging Copilot Logo" className="w-8 h-8 rounded-lg shadow-tactile-sm shrink-0" />
         <span className="font-serif text-2xl font-bold tracking-tight text-ink">
           Judging Copilot
         </span>
