@@ -437,6 +437,11 @@ async def get_verdict_endpoint(
 # Health check
 # ---------------------------------------------------------------------------
 
+@app.get("/", summary="Root endpoint", include_in_schema=False)
+async def root() -> dict:
+    return {"status": "ok", "service": "Judging Copilot API", "version": app.version, "docs": "/docs"}
+
+
 @app.get("/health", summary="Health check", include_in_schema=False)
 async def health() -> dict:
     return {"status": "ok", "version": app.version}
