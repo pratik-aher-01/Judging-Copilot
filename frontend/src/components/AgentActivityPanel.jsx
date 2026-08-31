@@ -157,9 +157,16 @@ export default function AgentActivityPanel({
       eventSourceRef.current.close();
     }
     setPhase('input');
+    setRepoUrl('');
     setStepsState({});
     setFinalVerdict(null);
     setFailureInfo(null);
+  };
+
+  const handleClose = () => {
+    if (phase === 'running') return;
+    handleReset();
+    onClose();
   };
 
   return (
@@ -183,7 +190,7 @@ export default function AgentActivityPanel({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             disabled={phase === 'running'}
             className="tactile-pill p-1.5 bg-white text-ink hover:bg-canvas-subtle disabled:opacity-40"
             title="Close"
@@ -356,15 +363,22 @@ export default function AgentActivityPanel({
 
                 <div className="flex items-center justify-end gap-2 pt-2 border-t border-ink/10">
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="tactile-pill px-4 py-2 bg-white text-ink text-xs font-medium hover:bg-canvas-subtle"
                   >
                     Close
                   </button>
                   <button
+                    onClick={handleReset}
+                    className="tactile-pill flex items-center gap-1.5 px-4 py-2 bg-accent-coral text-ink text-xs font-bold hover:bg-accent-coral-hover shadow-tactile"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Submit Another Repo</span>
+                  </button>
+                  <button
                     onClick={() => {
                       if (onViewVerdict) onViewVerdict(finalVerdict);
-                      onClose();
+                      handleClose();
                     }}
                     className="tactile-pill flex items-center gap-1.5 px-4 py-2 bg-ink text-paper text-xs font-bold hover:bg-ink-secondary shadow-tactile"
                   >
