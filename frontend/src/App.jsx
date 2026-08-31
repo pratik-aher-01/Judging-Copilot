@@ -5,6 +5,7 @@ import VerdictTable from './components/VerdictTable';
 import RubricDrawer from './components/RubricDrawer';
 import EmptyState from './components/EmptyState';
 import AgentActivityPanel from './components/AgentActivityPanel';
+import JudgeAuthModal from './components/JudgeAuthModal';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { API_BASE_URL } from './config';
 
@@ -17,6 +18,9 @@ export default function App() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedVerdict, setSelectedVerdict] = useState(null);
   const [isActivityOpen, setIsActivityOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('judge_authenticated') === 'true';
+  });
 
   // Sorting state
   const [sortField, setSortField] = useState('timestamp');
@@ -119,6 +123,11 @@ export default function App() {
         loading={loading}
         onRefresh={fetchVerdicts}
         onOpenSubmit={() => setIsActivityOpen(true)}
+        isAuthenticated={isAuthenticated}
+        onSignOut={() => {
+          localStorage.removeItem('judge_authenticated');
+          setIsAuthenticated(false);
+        }}
       />
 
       {/* Backend Disconnected Notice (if any) */}
@@ -202,6 +211,12 @@ export default function App() {
         onClose={() => setIsActivityOpen(false)}
         onVerdictCreated={handleVerdictCreated}
         onViewVerdict={handleViewVerdict}
+      />
+
+      {/* Judge Authentication Gate Modal */}
+      <JudgeAuthModal
+        isOpen={!isAuthenticated}
+        onAuthenticate={() => setIsAuthenticated(true)}
       />
     </div>
   );

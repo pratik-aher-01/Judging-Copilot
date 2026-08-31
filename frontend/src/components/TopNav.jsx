@@ -1,11 +1,13 @@
 import React from 'react';
-import { ShieldAlert, RefreshCw, Plus, CheckCircle2, Copy } from 'lucide-react';
+import { ShieldAlert, RefreshCw, Plus, CheckCircle2, Lock, LogOut } from 'lucide-react';
 
 export default function TopNav({
   verdicts = [],
   loading = false,
   onRefresh,
   onOpenSubmit,
+  isAuthenticated = false,
+  onSignOut,
 }) {
   const flaggedCount = verdicts.filter(
     (v) => v.duplicate_flag || (v.score !== undefined && v.score < 50)
@@ -65,6 +67,17 @@ export default function TopNav({
           <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
           <span>Submit Repo</span>
         </button>
+
+        {/* Judge Lock / Sign Out Button */}
+        {isAuthenticated && onSignOut && (
+          <button
+            onClick={onSignOut}
+            className="tactile-pill p-1.5 bg-canvas-subtle text-ink hover:bg-accent-coral hover:text-ink border border-ink/20"
+            title="Lock Dashboard (Judge Sign Out)"
+          >
+            <LogOut className="w-4 h-4 stroke-[2]" />
+          </button>
+        )}
       </div>
     </header>
   );
