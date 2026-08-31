@@ -265,6 +265,7 @@ def score_repo(repo_url: str, local_path: str):
 
     def _call_model(model_name: str) -> object:
         """One Gemini generate_content call — raises on any error."""
+        thinking_level = os.environ.get("GEMINI_THINKING_LEVEL", "low").strip()
         return client.models.generate_content(
             model=model_name,
             contents=prompt,
@@ -272,8 +273,8 @@ def score_repo(repo_url: str, local_path: str):
                 response_mime_type="application/json",
                 response_schema=GeminiScoreResponse,
                 # Gemini 3.5 replaces temperature/top_p/top_k with thinking_level.
-                # 'medium' is appropriate for a structured code-review scoring task.
-                thinking_config=types.ThinkingConfig(thinking_level="medium"),
+                # Default is 'low' for fast evaluation latencies (configurable via GEMINI_THINKING_LEVEL).
+                thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
                 # Explicitly disable Automatic Function Calling — we have no tools
                 # registered. Without this, the SDK emits an advisory warning on
                 # every models.generate_content() call.
