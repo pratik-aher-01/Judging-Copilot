@@ -41,8 +41,8 @@ GEMINI_MODEL = "gemini-3.5-flash"
 GEMINI_FALLBACK_MODEL = "gemini-3.6-flash"
 
 # Retry settings for transient API errors (503 / 429 / ResourceExhausted)
-MAX_RETRIES = 3          # attempts per model before giving up / falling back
-RETRY_BASE_DELAY = 2.0  # seconds — doubles on each retry (2 → 4 → 8)
+MAX_RETRIES = 5          # attempts per model before giving up / falling back
+RETRY_BASE_DELAY = 5.0  # seconds — doubles on each retry (5 → 10 → 20)
 
 # Directories that add noise / blow up token counts — skip them entirely
 SKIP_DIRS = {
