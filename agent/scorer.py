@@ -37,12 +37,14 @@ RUBRIC_PROMPT_PATH = Path(__file__).parent / "prompts" / "rubric_prompt.txt"
 # Primary Gemini model — required by the hackathon (Gemini 3.5+ constraint).
 GEMINI_MODEL = "gemini-3.5-flash"
 
-# Fallback model used when the primary is unavailable (503/429).
+# Fallback models used when the primary is rate-limited or unavailable (503/429).
 GEMINI_FALLBACK_MODEL = "gemini-3.6-flash"
+GEMINI_QUICK_FALLBACK = "gemini-2.5-flash"
 
 # Retry settings for transient API errors (503 / 429 / ResourceExhausted)
-MAX_RETRIES = 5          # attempts per model before giving up / falling back
-RETRY_BASE_DELAY = 5.0  # seconds — doubles on each retry (5 → 10 → 20)
+MAX_RETRIES = 2          # 2 quick attempts per model for fast responses
+RETRY_BASE_DELAY = 1.5  # seconds — minimal delay (1.5s -> 3s)
+
 
 # Directories that add noise / blow up token counts — skip them entirely
 SKIP_DIRS = {
@@ -266,28 +268,24 @@ def score_repo(repo_url: str, local_path: str):
     def _call_model(model_name: str) -> object:
         """One Gemini generate_content call — raises on any error."""
         thinking_level = os.environ.get("GEMINI_THINKING_LEVEL", "low").strip()
+        config_kwargs = {
+            "response_mime_type": "application/json",
+            "response_schema": GeminiScoreResponse,
+            "automatic_function_calling": types.AutomaticFunctionCallingConfig(disable=True),
+        }
+        if "3.5" in model_name or "3.6" in model_name:
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=thinking_level)
+
         return client.models.generate_content(
             model=model_name,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=GeminiScoreResponse,
-                # Gemini 3.5 replaces temperature/top_p/top_k with thinking_level.
-                # Default is 'low' for fast evaluation latencies (configurable via GEMINI_THINKING_LEVEL).
-                thinking_config=types.ThinkingConfig(thinking_level=thinking_level),
-                # Explicitly disable Automatic Function Calling — we have no tools
-                # registered. Without this, the SDK emits an advisory warning on
-                # every models.generate_content() call.
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                    disable=True
-                ),
-            ),
+            config=types.GenerateContentConfig(**config_kwargs),
         )
 
     response = None
     last_exc: Exception | None = None
 
-    for model_name in (GEMINI_MODEL, GEMINI_FALLBACK_MODEL):
+    for model_name in (GEMINI_MODEL, GEMINI_FALLBACK_MODEL, GEMINI_QUICK_FALLBACK):
         logger.info("Calling Gemini (%s) for repo: %s", model_name, repo_url)
         for attempt in range(1, MAX_RETRIES + 1):
             try:
