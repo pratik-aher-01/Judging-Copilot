@@ -68,7 +68,7 @@ export default function JudgeAuthModal({ isOpen, onAuthenticate }) {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="judge@devpost.com"
+                placeholder="username"
                 required
                 className="w-full bg-white border border-ink rounded-lg pl-9 pr-3 py-2.5 text-xs font-mono text-ink placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent-coral"
               />
